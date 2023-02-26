@@ -7,9 +7,13 @@ class Category(models.Model):
         'Название',
         max_length=50
     )
-    sub_category = models.ManyToManyField(
+    sub_category = models.ForeignKey(
         'self',
-        verbose_name='Подкатегория',
+        on_delete=models.CASCADE,
+        verbose_name='Категория',
+        related_name='categories',
+        blank=True,
+        null=True,
     )
 
     class Meta:
@@ -40,7 +44,7 @@ class Product(models.Model):
         related_name='products',
         db_index=True
     )
-    image = models.ImageField('Изображение')
+    image = models.ImageField('Изображение', blank=True)
 
     class Meta:
         verbose_name = 'Товар'
