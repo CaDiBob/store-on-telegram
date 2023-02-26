@@ -14,16 +14,6 @@ class Client(models.Model):
         unique=True,
         db_index=True
     )
-    email = models.CharField(
-        'Email',
-        max_length=100,
-        blank=True
-    )
-    address = models.CharField(
-        'Адрес',
-        max_length=255,
-        blank=True
-    )
 
     class Meta:
         verbose_name = 'Клиент'
