@@ -17,6 +17,10 @@ from environs import Env
 
 env =Env()
 env.read_env()
+
+TG_TOKEN = env('TG_TOKEN')
+TG_CHAT_ID = env('TG_CHAT_ID')
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -42,9 +46,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
     'clients',
-    'products'
+    'products',
+    'tgbot'
 ]
 
 MIDDLEWARE = [
