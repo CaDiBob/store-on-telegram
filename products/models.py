@@ -1,5 +1,8 @@
 from django.db import models
+from django.utils import timezone
 from django.core.validators import MinValueValidator
+
+from clients.models import Client
 
 
 class Category(models.Model):
@@ -52,3 +55,49 @@ class Product(models.Model):
 
     def __str__(self):
         return f'{self.name} {self.category} {self.price}'
+
+
+class Order(models.Model):
+    client = models.ForeignKey(
+        Client,
+        verbose_name='Клиент',
+        on_delete=models.CASCADE,
+        related_name='orders',
+    )
+    created_at = models.DateTimeField(
+        'Когда создан',
+        default=timezone.now,
+    )
+
+    class Meta:
+        verbose_name = 'Заказ'
+        verbose_name_plural = 'Заказы'
+
+    def __str__(self):
+        return f'{self.client.tg_user_id} {self.created_at}'
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(
+        Order,
+        verbose_name='Заказ',
+        related_name='order_items',
+        on_delete=models.CASCADE
+    )
+    product = models.ForeignKey(
+        Product,
+        verbose_name='Товар',
+        related_name='items',
+        on_delete=models.PROTECT
+    )
+    quantity = models.IntegerField(
+        'Количество',
+        validators=[MinValueValidator(1)]
+    )
+
+    class Meta:
+        verbose_name = 'Пункт заказа'
+        verbose_name_plural = 'Пункты заказа'
+
+    def __str__(self):
+        return f'{self.product.name} {self.quantity}'
