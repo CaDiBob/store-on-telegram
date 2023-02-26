@@ -1,6 +1,7 @@
 from django.contrib import admin
 
-from .models import Category, Product
+from .models import Category, Product, Order, OrderItem
+
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -19,3 +20,15 @@ class ProductAdmin(admin.ModelAdmin):
         'image',
         'price'
     )
+
+
+class OrederItemTubularInline(admin.TabularInline):
+    model = OrderItem
+    extra = 0
+
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ('created_at',)
+
+    inlines = (OrederItemTubularInline,)
