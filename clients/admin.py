@@ -4,4 +4,4 @@ from .models import Client
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ('user',)
+    list_display = ('tg_user_id',)
