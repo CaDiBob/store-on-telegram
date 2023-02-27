@@ -47,7 +47,11 @@ class Product(models.Model):
         related_name='products',
         db_index=True
     )
-    image = models.ImageField('Изображение', blank=True)
+    image = models.ImageField(
+        'Изображение',
+        blank=True,
+        null=True
+    )
 
     class Meta:
         verbose_name = 'Товар'
