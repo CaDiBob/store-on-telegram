@@ -20,5 +20,12 @@ def create_client(tg_user_id, first_name):
 
 
 @sync_to_async
-def get_catygories():
-    pass
+def get_catigories(super_category=None):
+    categories = Category.objects.filter(sub_category=super_category)
+    return [category for category in categories]
+
+
+@sync_to_async
+def get_category(category_id):
+    category = Category.objects.get(id=category_id)
+    return category
