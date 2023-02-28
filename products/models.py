@@ -41,13 +41,19 @@ class Product(models.Model):
         validators=[MinValueValidator(0)],
         db_index=True
     )
-    category = models.ManyToManyField(
+    category = models.ForeignKey(
         Category,
+        on_delete=models.SET_NULL,
         verbose_name='Категория',
         related_name='products',
+        null=True,
         db_index=True
     )
-    image = models.ImageField('Изображение', blank=True)
+    image = models.ImageField(
+        'Изображение',
+        blank=True,
+        null=True
+    )
 
     class Meta:
         verbose_name = 'Товар'

@@ -25,10 +25,12 @@ from telegram.ext import (
 from clients.models import Client
 from ._tools import (
     create_client,
+    get_catigories,
+    get_category,
 )
 
 
-HANDLE_MENU, START_OVER = range(2)
+HANDLE_CATEGORIES, HANDLE_MENU, START_OVER = range(3)
 
 
 logger = logging.getLogger(__name__)
@@ -46,7 +48,7 @@ class TelegramLogsHandler(logging.Handler):
         self.tg_bot.send_message(chat_id=self.chat_id, text=log_entry)
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def start(update, context):
 
     text = 'Выберете действие:'
 
@@ -108,13 +110,30 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def handle_menu(update, context):
-    await update.message.reply_text(
-        'You are here'
-    )
-    return HANDLE_MENU
+    categories = await get_catigories()
+
+    keyboard = [InlineKeyboardButton(category.name, callback_data=category.id) for category in categories]
+
+    reply_markup = InlineKeyboardMarkup.from_column(keyboard)
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text(text='Выберите категорию:', reply_markup=reply_markup)
+    return HANDLE_CATEGORIES
 
 
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def handle_categories(update, context):
+    super_category_id = update.callback_query.data
+    category = await get_category(super_category_id)
+    categories = await get_catigories(category)
+    keyboard = [InlineKeyboardButton(category.name, callback_data=category.id) for category in categories]
+
+    reply_markup = InlineKeyboardMarkup.from_column(keyboard)
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text(text='Выберите категорию:', reply_markup=reply_markup)
+    return HANDLE_CATEGORIES
+
+
+
+async def cancel(update, context):
     user = update.message.from_user
     await update.message.reply_text(
         "Bye! I hope we can talk again some day.", reply_markup=ReplyKeyboardRemove()
@@ -135,7 +154,15 @@ def bot_starting():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            HANDLE_MENU: [CallbackQueryHandler(handle_menu)],
+            HANDLE_MENU: [
+                CallbackQueryHandler(handle_menu),
+                CallbackQueryHandler(start, pattern=r'Главное меню')
+            ],
+            HANDLE_CATEGORIES: [
+                CallbackQueryHandler(handle_categories, pattern=r'[0-9]')
+            ]
+
+
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
