@@ -29,3 +29,9 @@ def get_catigories(super_category=None):
 def get_category(category_id):
     category = Category.objects.get(id=category_id)
     return category
+
+
+@sync_to_async
+def get_products(category_id):
+    products = Product.objects.select_related('category').filter(category=category_id)
+    return [product for product in products]
