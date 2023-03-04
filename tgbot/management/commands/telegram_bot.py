@@ -106,50 +106,7 @@ async def start(update, context):
             reply_markup=keyboard
         )
     context.user_data[START_OVER] = True
-
     return HANDLE_CATEGORIES
-
-
-# async def show_next_page(update, context):
-#     logger.info('show_next_page')
-#     context.user_data['current_page'] += 1
-#     buttons_menu = await get_buttons_menu(context.user_data['current_page'])
-#     return buttons_menu
-    # await update.callback_query.answer()
-    # await update.callback_query.edit_message_text(
-    #     text='Выберите категорию:',
-    #     reply_markup=buttons_menu,
-    # )
-
-
-# async def show_previous_page(update, context):
-#     logger.info('show_previous_page')
-#     context.user_data['current_page'] -= 1
-#     buttons_menu = await get_buttons_menu(context.user_data['current_page'])
-#     return buttons_menu
-    # await update.callback_query.answer()
-    # await update.callback_query.edit_message_text(
-    #     text='Выберите категорию:',
-    #     reply_markup=buttons_menu,
-    # )
-
-
-# async def get_buttons_menu(current_page):
-#     categories = await get_catigories()
-#     categories_per_group = 4
-#     category_groups = list(chunked(categories, categories_per_group))
-#     current_page_group = category_groups[current_page]
-#     keyboard = [[InlineKeyboardButton(
-#         category.name, callback_data=category.id)]for category in current_page_group]
-#     if current_page > 0:
-#         keyboard.insert(0, [InlineKeyboardButton(
-#             "<<<", callback_data="previous_page")])
-#     if current_page < len(category_groups)-1:
-#         keyboard.append([InlineKeyboardButton(
-#             ">>>", callback_data="next_page")])
-#     keyboard.append([InlineKeyboardButton(
-#         "Главное меню", callback_data="Главное меню")])
-#     return InlineKeyboardMarkup(keyboard)
 
 
 async def get_buttons(update, context, categories, current_page):
@@ -174,6 +131,7 @@ async def get_buttons(update, context, categories, current_page):
             footer_buttons=get_footer_buttons(
                 'prev',
                 'Главное меню',
+                'Назад',
                 'next'
             )
         )
@@ -201,21 +159,18 @@ async def handle_categories(update, context):
 
 
 async def handle_sub_categories(update, context):
-    logger.info('handle_categories')
-    super_category_id = update.callback_query.data
+    logger.info('handle_sub_categories')
+    if update.callback_query.data == 'next' or update.callback_query.data == 'prev':
+        super_category_id = context.user_data['super_category_id']
+    else:
+        super_category_id = update.callback_query.data
     category = await get_category(super_category_id)
     categories = await get_catigories(category)
-    # keyboard = [InlineKeyboardButton(
-    #     category.name, callback_data=category.id) for category in categories]
-    # reply_markup = InlineKeyboardMarkup(
-    #     build_menu(keyboard, n_cols=2, footer_buttons=get_footer_buttons(
-    #         'Главное меню', 'Корзина', 'Назад'))
-    # )
     categories_per_group = 4
     category_groups = list(chunked(categories, categories_per_group))
-
-    buttons = await get_buttons(update, context, category_groups, 0)
-
+    current_page = 0
+    buttons = await get_buttons(update, context, category_groups, current_page)
+    context.user_data['super_category_id'] = super_category_id
     await update.callback_query.answer()
     await update.callback_query.edit_message_text(
         text='Выберите категорию:',
@@ -275,6 +230,7 @@ def bot_starting():
             HANDLE_PRODUCTS: [
                 CallbackQueryHandler(handle_products, pattern=r'[0-9]'),
                 CallbackQueryHandler(start, pattern=r'Главное меню'),
+                CallbackQueryHandler(handle_categories, pattern=r'Назад'),
                 CallbackQueryHandler(handle_sub_categories),
             ]
         },
