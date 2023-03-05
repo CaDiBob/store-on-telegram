@@ -24,7 +24,7 @@ from clients.models import Client
 from ._tools import (
     create_client,
     get_catigories,
-    get_category,
+    get_product_detail,
     get_products,
 )
 
@@ -89,15 +89,15 @@ async def start(update, context):
 
         await update.message.reply_text(
             tw.dedent(f'''
-        * Здравствуйте {first_name}\! *
+        <b>Здравствуйте {first_name}!</b>
         Вас приветствует "Магазин в Телеграме"
         '''),
-            parse_mode=ParseMode.MARKDOWN_V2
+            parse_mode=ParseMode.HTML
         )
 
         await update.message.reply_text(
             text=text,
-            parse_mode=ParseMode.MARKDOWN_V2,
+            parse_mode=ParseMode.HTML,
             reply_markup=keyboard
         )
     context.user_data[START_OVER] = True
@@ -199,6 +199,9 @@ async def handle_sub_categories(update, context):
         context.user_data['super_category_id'] = update.callback_query.data
         super_category_id = context.user_data['super_category_id']
         await show_main_page(update, context, super_category_id)
+    elif update.callback_query.data == 'Назад':
+        super_category_id = context.user_data['super_category_id']
+        await show_main_page(update, context, super_category_id)
     return HANDLE_PRODUCTS
 
 
@@ -206,11 +209,30 @@ async def handle_products(update, context):
     logger.info('handle_products new')
     product_category = update.callback_query.data
     products_category = await get_products(product_category)
+    products_num = len(products_category)
     for product in products_category:
+        put_cart_button = InlineKeyboardMarkup(
+            [[InlineKeyboardButton('Добавить в корзину',
+                                   callback_data='Добавить в корзину'),]]
+        )
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=f'{product.name} - {product.price} RUB'
+            text=get_product_detail(product),
+            reply_markup=put_cart_button,
+            parse_mode=ParseMode.HTML
         )
+    keyboard = [
+        [
+            InlineKeyboardButton('Назад', callback_data='Назад'),
+            InlineKeyboardButton('Главное меню', callback_data='Главное меню')
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await context.bot.send_message(
+        text=f'Показано товаров: {products_num}',
+        chat_id=update.effective_chat.id,
+        reply_markup=reply_markup
+    )
     return HANDLE_PRODUCTS
 
 
@@ -247,9 +269,7 @@ def bot_starting():
             HANDLE_PRODUCTS: [
                 CallbackQueryHandler(handle_products, pattern=r'[0-9]'),
                 CallbackQueryHandler(start, pattern=r'Главное меню'),
-                CallbackQueryHandler(handle_categories, pattern=r'Назад'),
                 CallbackQueryHandler(handle_sub_categories)
-                # CallbackQueryHandler(handle_products),
             ]
         },
         fallbacks=[CommandHandler('cancel', cancel)],

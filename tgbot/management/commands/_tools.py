@@ -35,3 +35,11 @@ def get_category(category_id):
 def get_products(category_id):
     products = Product.objects.select_related('category').filter(category=category_id)
     return [product for product in products]
+
+
+def get_product_detail(product):
+    return f'''
+    <b>{product.name}</b>
+    <i>{product.description}</i>
+    Цена <b>{product.price}</b> руб.
+    '''
