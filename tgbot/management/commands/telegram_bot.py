@@ -25,6 +25,7 @@ from clients.models import Client
 from ._tools import (
     add_product_to_cart,
     create_client,
+    create_client_address,
     get_cart_products_info,
     get_catigories,
     get_product_detail,
@@ -90,7 +91,7 @@ async def start(update, context):
         )
 
     else:
-        tg_user_id = update.message.chat_id
+        tg_user_id = update.effective_user.id
         context.user_data['tg_user_id'] = tg_user_id
         first_name = update.message.chat.first_name
         await create_client(tg_user_id, first_name)
@@ -270,8 +271,9 @@ async def check_quantity(update, context):
         [
             [
                 InlineKeyboardButton('Назад', callback_data='Назад'),
-                InlineKeyboardButton('Подтвердить', callback_data='Подтвердить')
-                ]
+                InlineKeyboardButton(
+                    'Подтвердить', callback_data='Подтвердить')
+            ]
         ]
     )
     context.user_data['quantity'] = update.message.text
@@ -297,14 +299,15 @@ async def add_cart(update, context):
         reply_markup = InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton('Категории', callback_data='Категории'),
+                    InlineKeyboardButton(
+                        'Категории', callback_data='Категории'),
                     InlineKeyboardButton('Корзина', callback_data='Корзина'),
                     InlineKeyboardButton('Назад', callback_data='Назад')
-                    ]
+                ]
             ]
         )
         await context.bot.send_message(
-            text= product_to_cart,
+            text=product_to_cart,
             chat_id=update.effective_chat.id,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
@@ -318,13 +321,17 @@ async def show_cart_info(update, context):
         text=products
     )
 
+
 async def handle_cart(update, context):
     reply_markup = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton('Назад', callback_data='Назад'),
                 InlineKeyboardButton('Оплатить', callback_data='Оплатить'),
-                InlineKeyboardButton('Добавить адрес для доставки', callback_data='delivery_address')
+            ],
+            [
+                InlineKeyboardButton(
+                    'Добавить адрес для доставки', callback_data='delivery_address')
             ]
         ]
     )
@@ -339,6 +346,43 @@ async def handle_cart(update, context):
             parse_mode=ParseMode.HTML
         )
         return HANDLE_MENU
+
+
+async def add_delivery_address(update, context):
+    keyboard = [
+        [InlineKeyboardButton('Корзина', callback_data='cart')],
+        [InlineKeyboardButton('Назад', callback_data='Назад')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text(
+        'Хорошо, для доставки товаров пришлите нам ваш адрес текстом',
+        reply_markup=reply_markup,
+    )
+    return HANDLE_WAITING
+
+
+async def check_address_text(update, context):
+    address = update.message.text
+    context.user_data['address'] = address
+    reply_markup = InlineKeyboardMarkup([
+        [InlineKeyboardButton('Верно', callback_data='Верно')],
+        [InlineKeyboardButton('Ввести снова', callback_data='Ввести снова')],
+    ])
+    await context.bot.send_message(
+        text=f'Вы ввели: <b>{address}</b>',
+        chat_id=update.message.chat_id,
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.HTML
+    )
+    return HANDLE_WAITING
+
+async def save_customer(update, context):
+    address = context.user_data['address']
+    tg_user_id = update.effective_user.id
+    await create_client_address(address, tg_user_id)
+    await update.callback_query.answer('Ваш адрес успешно сохранен')
+    await handle_cart(update, context)
 
 
 async def cancel(update, context):
@@ -362,7 +406,8 @@ def bot_starting():
         entry_points=[CommandHandler('start', start)],
         states={
             HANDLE_MENU: [
-                CallbackQueryHandler(start, pattern='Назад')
+                CallbackQueryHandler(start, pattern='Назад'),
+                CallbackQueryHandler(add_delivery_address, pattern=r'delivery_address'),
             ],
             HANDLE_CATEGORIES: [
                 CallbackQueryHandler(handle_sub_categories, pattern=r'[0-9]'),
@@ -391,7 +436,12 @@ def bot_starting():
                 CallbackQueryHandler(handle_cart, pattern=r'Корзина'),
                 CallbackQueryHandler(add_cart)
             ],
-
+            HANDLE_WAITING: [
+                CallbackQueryHandler(add_delivery_address, pattern=r'Ввести снова'),
+                CallbackQueryHandler(save_customer, pattern=r'Верно'),
+                MessageHandler(filters.TEXT & ~filters.COMMAND,
+                               check_address_text),
+            ]
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )

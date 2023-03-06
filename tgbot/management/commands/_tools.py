@@ -106,3 +106,10 @@ def get_cart_products_info(context):
     <i>Общая стоимость:</i> ₽{products_in_cart.get_total_price()}
     ''')
     return products_info
+
+
+@sync_to_async
+def create_client_address(address, tg_user_id):
+    client = Client.objects.get(tg_user_id=tg_user_id)
+    client.address = address
+    client.save()
