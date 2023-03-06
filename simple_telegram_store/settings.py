@@ -21,6 +21,9 @@ env.read_env()
 TG_TOKEN = env('TG_TOKEN')
 TG_CHAT_ID = env('TG_CHAT_ID')
 
+CART_SESSION_ID = 'cart'
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -48,7 +51,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'clients',
     'products',
-    'tgbot'
+    'tgbot',
+    'cart'
 ]
 
 MIDDLEWARE = [

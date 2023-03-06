@@ -10,7 +10,6 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     ReplyKeyboardRemove,
-    Update
 )
 from telegram.constants import ParseMode
 from telegram.ext import (
@@ -18,23 +17,32 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     ConversationHandler,
+    filters,
+    MessageHandler,
 )
 
 from clients.models import Client
 from ._tools import (
+    add_product_to_cart,
     create_client,
+    get_cart_products_info,
     get_catigories,
     get_product_detail,
+    get_product_name,
     get_products,
 )
 
 
 (
     HANDLE_CATEGORIES,
+    HANDLE_CART,
+    HANDLE_DESCRIPTION,
+    HANDLE_MENU,
     HANDLE_SUB_CATEGORIES,
     HANDLE_PRODUCTS,
+    HANDLE_WAITING,
     START_OVER
-) = range(4)
+) = range(8)
 
 
 logging.basicConfig(
@@ -199,6 +207,7 @@ async def handle_sub_categories(update, context):
         context.user_data['super_category_id'] = update.callback_query.data
         super_category_id = context.user_data['super_category_id']
         await show_main_page(update, context, super_category_id)
+
     elif update.callback_query.data == 'Назад':
         super_category_id = context.user_data['super_category_id']
         await show_main_page(update, context, super_category_id)
@@ -213,7 +222,7 @@ async def handle_products(update, context):
     for product in products_category:
         put_cart_button = InlineKeyboardMarkup(
             [[InlineKeyboardButton('Добавить в корзину',
-                                   callback_data='Добавить в корзину'),]]
+                                   callback_data=product.id)]]
         )
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
@@ -233,7 +242,103 @@ async def handle_products(update, context):
         chat_id=update.effective_chat.id,
         reply_markup=reply_markup
     )
-    return HANDLE_PRODUCTS
+    return HANDLE_DESCRIPTION
+
+
+async def handle_product_detail(update, context):
+    logger.info('handle_product_detail')
+    reply_markup = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton('Назад', callback_data='Назад')]
+        ]
+    )
+    product_id = update.callback_query.data
+    context.user_data['product_id'] = product_id
+    product_detais = await get_product_name(product_id)
+    await context.bot.send_message(
+        text=product_detais,
+        chat_id=update.effective_chat.id,
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.HTML
+    )
+    return HANDLE_CART
+
+
+async def check_quantity(update, context):
+
+    reply_markup = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton('Назад', callback_data='Назад'),
+                InlineKeyboardButton('Подтвердить', callback_data='Подтвердить')
+                ]
+        ]
+    )
+    context.user_data['quantity'] = update.message.text
+    await context.bot.send_message(
+        text=f'Ты ввел {update.message.text}',
+        chat_id=update.effective_chat.id,
+        reply_markup=reply_markup
+    )
+    return HANDLE_CART
+
+
+async def add_cart(update, context):
+    logger.info('add_cart')
+    if update.callback_query.data == 'Категории':
+        await show_main_page(update, context, super_category_id=None)
+        return HANDLE_CATEGORIES
+    elif update.callback_query.data == 'Назад':
+        super_category_id = context.user_data['super_category_id']
+        await show_main_page(update, context, super_category_id)
+        return HANDLE_PRODUCTS
+    else:
+        product_to_cart = await add_product_to_cart(context)
+        reply_markup = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton('Категории', callback_data='Категории'),
+                    InlineKeyboardButton('Корзина', callback_data='Корзина'),
+                    InlineKeyboardButton('Назад', callback_data='Назад')
+                    ]
+            ]
+        )
+        await context.bot.send_message(
+            text= product_to_cart,
+            chat_id=update.effective_chat.id,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
+        )
+
+
+async def show_cart_info(update, context):
+    products = await get_cart_products_info(context)
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text(
+        text=products
+    )
+
+async def handle_cart(update, context):
+    reply_markup = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton('Назад', callback_data='Назад'),
+                InlineKeyboardButton('Оплатить', callback_data='Оплатить'),
+                InlineKeyboardButton('Добавить адрес для доставки', callback_data='delivery_address')
+            ]
+        ]
+    )
+    if not 'cart' in context.user_data:
+        await update.callback_query.answer('Пустая корзина')
+        return
+    else:
+        products = await get_cart_products_info(context)
+        await update.callback_query.edit_message_text(
+            text=products,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
+        )
+        return HANDLE_MENU
 
 
 async def cancel(update, context):
@@ -256,10 +361,14 @@ def bot_starting():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
+            HANDLE_MENU: [
+                CallbackQueryHandler(start, pattern='Назад')
+            ],
             HANDLE_CATEGORIES: [
                 CallbackQueryHandler(handle_sub_categories, pattern=r'[0-9]'),
+                CallbackQueryHandler(start, pattern=r'Главное меню'),
+                CallbackQueryHandler(handle_cart, pattern=r'cart'),
                 CallbackQueryHandler(handle_categories),
-                CallbackQueryHandler(start, pattern=r'Главное меню')
             ],
             HANDLE_SUB_CATEGORIES: [
                 CallbackQueryHandler(handle_sub_categories, pattern=r'[0-9]'),
@@ -270,7 +379,19 @@ def bot_starting():
                 CallbackQueryHandler(handle_products, pattern=r'[0-9]'),
                 CallbackQueryHandler(start, pattern=r'Главное меню'),
                 CallbackQueryHandler(handle_sub_categories)
-            ]
+            ],
+            HANDLE_DESCRIPTION: [
+                CallbackQueryHandler(handle_product_detail, pattern=r'[0-9]'),
+                CallbackQueryHandler(handle_sub_categories, pattern=r'Назад'),
+            ],
+            HANDLE_CART: [
+                MessageHandler(filters.TEXT, check_quantity),
+                CallbackQueryHandler(handle_sub_categories, pattern=r'Назад'),
+                CallbackQueryHandler(add_cart, pattern=r'Подтвердить'),
+                CallbackQueryHandler(handle_cart, pattern=r'Корзина'),
+                CallbackQueryHandler(add_cart)
+            ],
+
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
