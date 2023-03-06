@@ -35,7 +35,6 @@ class Cart(object):
 
     def __iter__(self):
         product_ids = self.cart.keys()
-        # получение объектов product и добавление их в корзину
         products = Product.objects.filter(id__in=product_ids)
         for product in products:
             self.cart[str(product.id)]['product'] = product
