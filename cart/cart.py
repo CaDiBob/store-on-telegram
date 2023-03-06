@@ -28,18 +28,12 @@ class Cart(object):
         self.session['modified'] = True
 
     def remove(self, product):
-        """
-        Удаление товара из корзины.
-        """
         product_id = str(product.id)
         if product_id in self.cart:
             del self.cart[product_id]
             self.save()
 
     def __iter__(self):
-        """
-        Перебор элементов в корзине и получение продуктов из базы данных.
-        """
         product_ids = self.cart.keys()
         # получение объектов product и добавление их в корзину
         products = Product.objects.filter(id__in=product_ids)
@@ -52,19 +46,12 @@ class Cart(object):
             yield item
 
     def __len__(self):
-        """
-        Подсчет всех товаров в корзине.
-        """
         return sum(item['quantity'] for item in self.cart.values())
 
     def get_total_price(self):
-        """
-        Подсчет стоимости товаров в корзине.
-        """
         return sum(Decimal(item['price']) * item['quantity'] for item in
                 self.cart.values())
 
     def clear(self):
-        # удаление корзины из сессии
         del self.session[settings.CART_SESSION_ID]
         self.session['modified'] = True
