@@ -8,6 +8,7 @@ class Client(models.Model):
         db_index=True
     )
     first_name = models.CharField('Имя', max_length=50)
+    address = models.TextField('Адрес', blank=True)
 
     class Meta:
         verbose_name = 'Клиент'
