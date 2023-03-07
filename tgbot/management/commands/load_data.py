@@ -10,13 +10,33 @@ CATEGORIES = {
         'Планшеты',
         'Ноутбуки',
         'Телевизоры',
-        'Смарт-часы'
+        'Смарт-часы',
+        'Аудиотехника',
+        'Мониторы',
+        'Игровые приставки',
+        'Умный дом',
+        'Телефоны'
     ],
     'Бытовая техника': [
         'Холодильники',
         'Плиты',
         'Утюги',
         'Увлажнители воздуха',
+        'Техника для кухни',
+        'Пылесосы',
+        'Напольные весы'
+    ],
+    'Продукты питания':[
+        'Конфенты',
+        'Молоко',
+    ],
+    'Бытовая химия': [
+        'Средства для посуды',
+        'Стиральные порошки',
+    ],
+    'Товары для животных': [
+        'Корма для животных',
+        'Аксесуары для животных',
     ]
 }
 
@@ -24,28 +44,26 @@ CATEGORIES = {
 def create_products():
     for product in products_with_price:
         category = Category.objects.get(name=product['category'])
-        new_product = Product(
+        new_product = Product.objects.get_or_create(
             name=product['name'],
             description=product['description'],
             price=product['price'],
             category=category,
         )
-        new_product.save()
-        print(f'{new_product.name} добавлен')
+        print(f'{new_product} добавлен')
 
 
 def create_categories():
     for category, sub_categories in CATEGORIES.items():
-        if Category.objects.get(name=category):
-            continue
-        new_super_category = Category.objects.get_or_create(
+        Category.objects.get_or_create(
             name=category
         )
         print(f'{category} добавлена')
+        sup_cat = Category.objects.get(name=category)
         for sub_category in sub_categories:
-            new_sub_category = Category.objects.get_or_create(
+            Category.objects.get_or_create(
                 name=sub_category,
-                sub_category=new_super_category
+                sub_category=sup_cat
             )
             print(f'{sub_category} с надкотегорией {category} добавлена')
 

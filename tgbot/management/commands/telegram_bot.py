@@ -217,12 +217,21 @@ async def handle_products(update, context):
             [[InlineKeyboardButton('Добавить в корзину',
                                    callback_data=product.id)]]
         )
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=get_product_detail(product),
-            reply_markup=put_cart_button,
-            parse_mode=ParseMode.HTML
-        )
+        if not product.image:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=get_product_detail(product),
+                reply_markup=put_cart_button,
+                parse_mode=ParseMode.HTML
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=product.image,
+                caption=get_product_detail(product),
+                reply_markup=put_cart_button,
+                parse_mode=ParseMode.HTML
+            )
     keyboard = [
         [
             InlineKeyboardButton('Назад', callback_data='Назад'),
