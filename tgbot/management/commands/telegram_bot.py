@@ -257,8 +257,9 @@ async def handle_product_detail(update, context):
     product_id = update.callback_query.data
     context.user_data['product_id'] = product_id
     product_detais = await get_product_name(product_id)
+    context.user_data['product_detais'] = product_detais
     await context.bot.send_message(
-        text=product_detais,
+        text=f'{product_detais}\nВведите количество:',
         chat_id=update.effective_chat.id,
         reply_markup=reply_markup,
         parse_mode=ParseMode.HTML
@@ -277,11 +278,15 @@ async def check_quantity(update, context):
             ]
         ]
     )
+    product_detais = context.user_data['product_detais']
     context.user_data['quantity'] = update.message.text
     await context.bot.send_message(
-        text=f'Ты ввел {update.message.text}',
+        text=tw.dedent(f'''
+        Вы выбрали {product_detais}  {update.message.text} шт.
+        '''),
         chat_id=update.effective_chat.id,
-        reply_markup=reply_markup
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.HTML
     )
     return HANDLE_CART
 
@@ -336,7 +341,7 @@ async def handle_cart(update, context):
             ]
         ]
     )
-    if not 'Корзина' in context.user_data:
+    if not 'cart' in context.user_data:
         await update.callback_query.answer('Пустая корзина')
         return
     else:

@@ -56,8 +56,6 @@ def get_product_name(product_id):
     return tw.dedent(f'''
     <b>{product.name}</b>
     цена <b>{product.price}</b>
-
-    Введите количество:
     ''')
 
 
