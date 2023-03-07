@@ -9,6 +9,7 @@ from django.core.management.base import BaseCommand
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    LabeledPrice,
     ReplyKeyboardRemove,
 )
 from telegram.constants import ParseMode
@@ -19,6 +20,7 @@ from telegram.ext import (
     ConversationHandler,
     filters,
     MessageHandler,
+    PreCheckoutQueryHandler
 )
 
 from clients.models import Client
@@ -29,6 +31,7 @@ from ._tools import (
     get_cart_products_info,
     get_catigories,
     get_product_detail,
+    get_product_info_for_payment,
     get_product_name,
     get_products,
 )
@@ -41,9 +44,10 @@ from ._tools import (
     HANDLE_MENU,
     HANDLE_SUB_CATEGORIES,
     HANDLE_PRODUCTS,
+    HANDLE_USER_REPLY,
     HANDLE_WAITING,
     START_OVER
-) = range(8)
+) = range(9)
 
 
 logging.basicConfig(
@@ -377,12 +381,56 @@ async def check_address_text(update, context):
     )
     return HANDLE_WAITING
 
+
 async def save_customer(update, context):
     address = context.user_data['address']
     tg_user_id = update.effective_user.id
     await create_client_address(address, tg_user_id)
     await update.callback_query.answer('Ваш адрес успешно сохранен')
     await handle_cart(update, context)
+
+
+async def handle_user_payment(update, context):
+    logger.info('handle_user_payment')
+    order_info = await get_product_info_for_payment(context)
+    chat_id = update.effective_user.id
+    title = 'Оплата товаров "Магазин в Телеграме"'
+    description = order_info['products_info']
+    payload = 'telegram-store'
+    currency = 'RUB'
+    price = order_info['total_order_price']
+    payment_token = settings.PAYMENT_TOKEN
+    prices = [LabeledPrice('Оплата товаров', int(price) * 100)]
+    await context.bot.send_invoice(
+        chat_id, title, description, payload, payment_token, currency, prices
+    )
+    return HANDLE_USER_REPLY
+
+
+async def precheckout_callback(update, context):
+    logger.info('precheckout_callback')
+    query = update.pre_checkout_query
+    if query.invoice_payload != 'telegram-store':
+        await query.answer(ok=False, error_message="Something went wrong...")
+    else:
+        await query.answer(ok=True)
+    return HANDLE_USER_REPLY
+
+
+async def successful_payment_callback(update, context):
+    logger.info('successful_payment_callback')
+    reply_markup = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton('Назад', callback_data='Назад')
+            ]
+        ]
+    )
+    await update.message.reply_text(
+        'Успешно! Ожидайте доставку.',
+        reply_markup=reply_markup
+    )
+    return HANDLE_MENU
 
 
 async def cancel(update, context):
@@ -406,8 +454,10 @@ def bot_starting():
         entry_points=[CommandHandler('start', start)],
         states={
             HANDLE_MENU: [
+                CallbackQueryHandler(handle_user_payment, pattern=r'Оплатить'),
                 CallbackQueryHandler(start, pattern='Назад'),
-                CallbackQueryHandler(add_delivery_address, pattern=r'delivery_address'),
+                CallbackQueryHandler(add_delivery_address,
+                                     pattern=r'delivery_address'),
             ],
             HANDLE_CATEGORIES: [
                 CallbackQueryHandler(handle_sub_categories, pattern=r'[0-9]'),
@@ -437,13 +487,21 @@ def bot_starting():
                 CallbackQueryHandler(add_cart)
             ],
             HANDLE_WAITING: [
-                CallbackQueryHandler(add_delivery_address, pattern=r'Ввести снова'),
+                CallbackQueryHandler(add_delivery_address,
+                                     pattern=r'Ввести снова'),
                 CallbackQueryHandler(save_customer, pattern=r'Верно'),
                 MessageHandler(filters.TEXT & ~filters.COMMAND,
                                check_address_text),
+            ],
+            HANDLE_USER_REPLY: [
+                PreCheckoutQueryHandler(precheckout_callback),
+                MessageHandler(filters.SUCCESSFUL_PAYMENT,
+                               successful_payment_callback),
             ]
         },
         fallbacks=[CommandHandler('cancel', cancel)],
+        per_chat=False,
+        allow_reentry=True,
     )
 
     application.add_handler(conv_handler)
