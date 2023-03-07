@@ -20,6 +20,7 @@ env.read_env()
 
 TG_TOKEN = env('TG_TOKEN')
 TG_CHAT_ID = env('TG_CHAT_ID')
+PAYMENT_TOKEN = env('STRIPE_SECRET_TOKEN')
 
 CART_SESSION_ID = 'cart'
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'

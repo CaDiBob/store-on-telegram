@@ -109,6 +109,28 @@ def get_cart_products_info(context):
 
 
 @sync_to_async
+def get_product_info_for_payment(context):
+    products_in_cart = get_cart_info(context)
+    total_order_price = products_in_cart.get_total_price()
+    products_info = ''
+    for product in products_in_cart:
+        raw_name = product['product']
+        name = raw_name.name
+        quantity = product['quantity']
+        products_info += tw.dedent(f'''
+        {name}
+        Количество: {quantity} шт.
+        ''')
+    products_info += tw.dedent(f'''
+    Общая стоимость: ₽{total_order_price}
+    ''')
+    return {
+        'products_info': products_info,
+        'total_order_price': total_order_price
+        }
+
+
+@sync_to_async
 def create_client_address(address, tg_user_id):
     client = Client.objects.get(tg_user_id=tg_user_id)
     client.address = address
