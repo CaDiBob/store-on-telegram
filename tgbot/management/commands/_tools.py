@@ -72,10 +72,11 @@ def add_product_to_cart(context):
     <b>{quantity} шт. {product.name}</b>''')
 
 
+@sync_to_async
 def remove_product_from_cart(context):
     product_id = context.user_data['product_id']
     cart = Cart(context)
-    product = product = Product.objects.get(id=product_id)
+    product = Product.objects.get(id=product_id)
     cart.remove(product)
 
 
@@ -86,24 +87,26 @@ def get_cart_info(context):
 
 @sync_to_async
 def get_cart_products_info(context):
-    products_in_cart = get_cart_info(context)
+    cart = Cart(context)
+    products = []
     products_info = ''
-    for product in products_in_cart:
+    for position, product in enumerate(cart, start=1):
+        products.append(product['product'])
         raw_name = product['product']
         name = raw_name.name
         quantity = product['quantity']
         price = product['price']
         product_total_price = product['total_price']
         products_info += tw.dedent(f'''
-        <b>{name}</b>
+        №{position}. <b>{name}</b>
         <i>Цена:</i> ₽{price}
         <i>Количество:</i> {quantity} шт.
         <i>Стоимость:</i> ₽{product_total_price}
         ''')
     products_info += tw.dedent(f'''
-    <i>Общая стоимость:</i> ₽{products_in_cart.get_total_price()}
+    <i>Общая стоимость:</i> ₽{cart.get_total_price()}
     ''')
-    return products_info
+    return products_info, products
 
 
 @sync_to_async

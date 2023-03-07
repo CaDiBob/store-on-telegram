@@ -31,11 +31,11 @@ from ._tools import (
     create_client_address,
     get_cart_products_info,
     get_catigories,
-    get_footer_buttons,
     get_product_detail,
     get_product_info_for_payment,
     get_product_name,
     get_products,
+    remove_product_from_cart,
 )
 
 
@@ -160,9 +160,9 @@ async def get_menu(current_page, category_id):
                 'Назад',
                 callback_data='Назад'))
     footer_buttons.append(
-                InlineKeyboardButton(
-                    'Главное меню',
-                    callback_data='Главное меню'))
+        InlineKeyboardButton(
+            'Главное меню',
+            callback_data='Главное меню'))
     return InlineKeyboardMarkup(
         build_menu(
             keyboard,
@@ -329,29 +329,40 @@ async def show_cart_info(update, context):
 
 
 async def handle_cart(update, context):
-    reply_markup = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton('Назад', callback_data='Назад'),
-                InlineKeyboardButton('Оплатить', callback_data='Оплатить'),
-            ],
-            [
-                InlineKeyboardButton(
-                    'Добавить адрес для доставки', callback_data='delivery_address')
-            ]
-        ]
-    )
+    logger.info('handle_cart')
+    back = [InlineKeyboardButton('Назад', callback_data='Назад')]
+    delivery_address = [InlineKeyboardButton(
+        'Добавить адрес для доставки', callback_data='delivery_address')]
     if not 'cart' in context.user_data:
         await update.callback_query.answer('Пустая корзина')
         return
     else:
-        products = await get_cart_products_info(context)
+        products_info, products = await get_cart_products_info(context)
+        keyboard = []
+        for position, product in enumerate(products, start=1):
+            keyboard.append(InlineKeyboardButton(
+                f'Удалить позицию №{position}', callback_data=product.id))
+        keyboard_groups = build_menu(keyboard, n_cols=2)
+        keyboard_groups.append(back)
+        keyboard_groups.append(delivery_address)
+        reply_markup = InlineKeyboardMarkup(
+            keyboard_groups
+        )
         await update.callback_query.edit_message_text(
-            text=products,
+            text=products_info,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
         return HANDLE_MENU
+
+
+async def remove_product(update, context):
+    product_id = update.callback_query.data
+    context.user_data['product_id'] = product_id
+    await remove_product_from_cart(context)
+    await update.callback_query.answer('Товар удален из корзины')
+    await handle_cart(update, context)
+    return HANDLE_MENU
 
 
 async def add_delivery_address(update, context):
@@ -457,6 +468,7 @@ def bot_starting():
         states={
             HANDLE_MENU: [
                 CallbackQueryHandler(handle_user_payment, pattern=r'Оплатить'),
+                CallbackQueryHandler(remove_product, pattern=r'[0-9]'),
                 CallbackQueryHandler(start, pattern='Назад'),
                 CallbackQueryHandler(add_delivery_address,
                                      pattern=r'delivery_address'),
