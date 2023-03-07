@@ -66,7 +66,7 @@ async def start(update, context):
     keyboard = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton('📋 Каталог', callback_data='catalog')],
-            [InlineKeyboardButton('🛒Корзина', callback_data='cart')],
+            [InlineKeyboardButton('🛒Корзина', callback_data='Корзина')],
             [InlineKeyboardButton('🗣 FAQ', callback_data='faq')]
         ]
     )
@@ -80,7 +80,7 @@ async def start(update, context):
     else:
         tg_user_id = update.effective_user.id
         context.user_data['tg_user_id'] = tg_user_id
-        first_name = update.message.chat.first_name
+        first_name = update.effective_user.first_name
         await create_client(tg_user_id, first_name)
 
         await update.message.reply_text(
@@ -154,10 +154,15 @@ async def get_menu(current_page, category_id):
     if current_page < len(categories_group) - 1:
         footer_buttons.append(InlineKeyboardButton(
             '>>>', callback_data='next'))
+    if category_id:
+        footer_buttons.append(
+            InlineKeyboardButton(
+                'Назад',
+                callback_data='Назад'))
     footer_buttons.append(
-        InlineKeyboardButton(
-            'Главное меню',
-            callback_data='Главное меню'))
+                InlineKeyboardButton(
+                    'Главное меню',
+                    callback_data='Главное меню'))
     return InlineKeyboardMarkup(
         build_menu(
             keyboard,
@@ -322,7 +327,7 @@ async def handle_cart(update, context):
             ]
         ]
     )
-    if not 'cart' in context.user_data:
+    if not 'Корзина' in context.user_data:
         await update.callback_query.answer('Пустая корзина')
         return
     else:
@@ -337,7 +342,7 @@ async def handle_cart(update, context):
 
 async def add_delivery_address(update, context):
     keyboard = [
-        [InlineKeyboardButton('Корзина', callback_data='cart')],
+        [InlineKeyboardButton('Корзина', callback_data='Корзина')],
         [InlineKeyboardButton('Назад', callback_data='Назад')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -417,11 +422,11 @@ async def successful_payment_callback(update, context):
 
 
 async def cancel(update, context):
-    user = update.message.from_user
     await update.message.reply_text(
         'Bye! I hope we can talk again some day.',
         reply_markup=ReplyKeyboardRemove()
     )
+    context.user_data[START_OVER] = False
     return ConversationHandler.END
 
 
@@ -445,7 +450,7 @@ def bot_starting():
             HANDLE_CATEGORIES: [
                 CallbackQueryHandler(handle_sub_categories, pattern=r'[0-9]'),
                 CallbackQueryHandler(start, pattern=r'Главное меню'),
-                CallbackQueryHandler(handle_cart, pattern=r'cart'),
+                CallbackQueryHandler(handle_cart, pattern=r'Корзина'),
                 CallbackQueryHandler(handle_categories),
             ],
             HANDLE_SUB_CATEGORIES: [
@@ -455,12 +460,14 @@ def bot_starting():
             ],
             HANDLE_PRODUCTS: [
                 CallbackQueryHandler(handle_products, pattern=r'[0-9]'),
+                CallbackQueryHandler(handle_categories, pattern=r'Назад'),
                 CallbackQueryHandler(start, pattern=r'Главное меню'),
                 CallbackQueryHandler(handle_sub_categories)
             ],
             HANDLE_DESCRIPTION: [
                 CallbackQueryHandler(handle_product_detail, pattern=r'[0-9]'),
                 CallbackQueryHandler(handle_sub_categories, pattern=r'Назад'),
+                CallbackQueryHandler(start, pattern=r'Главное меню'),
             ],
             HANDLE_CART: [
                 MessageHandler(filters.TEXT, check_quantity),
@@ -482,7 +489,10 @@ def bot_starting():
                                successful_payment_callback),
             ]
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[
+            CommandHandler('cancel', cancel),
+            CommandHandler("start", start),
+        ],
         per_chat=False,
         allow_reentry=True,
     )
