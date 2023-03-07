@@ -1,6 +1,7 @@
 import textwrap as tw
 
 from asgiref.sync import sync_to_async
+from telegram import InlineKeyboardButton
 
 from clients.models import Client
 from products.models import Category, Product
@@ -80,7 +81,6 @@ def remove_product_from_cart(context):
     cart.remove(product)
 
 
-
 def get_cart_info(context):
     cart = Cart(context)
     return cart
@@ -127,7 +127,7 @@ def get_product_info_for_payment(context):
     return {
         'products_info': products_info,
         'total_order_price': total_order_price
-        }
+    }
 
 
 @sync_to_async
@@ -135,3 +135,22 @@ def create_client_address(address, tg_user_id):
     client = Client.objects.get(tg_user_id=tg_user_id)
     client.address = address
     client.save()
+
+
+def build_menu(buttons, n_cols,
+               header_buttons=None,
+               footer_buttons=None):
+
+    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
+    if header_buttons:
+        menu.insert(0, header_buttons)
+    if footer_buttons:
+        menu.append(footer_buttons)
+    return menu
+
+
+def get_footer_buttons(*args):
+    footer_buttons = [
+        InlineKeyboardButton(button, callback_data=button) for button in args
+    ]
+    return footer_buttons

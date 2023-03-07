@@ -26,10 +26,12 @@ from telegram.ext import (
 from clients.models import Client
 from ._tools import (
     add_product_to_cart,
+    build_menu,
     create_client,
     create_client_address,
     get_cart_products_info,
     get_catigories,
+    get_footer_buttons,
     get_product_detail,
     get_product_info_for_payment,
     get_product_name,
@@ -56,25 +58,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-
-def build_menu(buttons, n_cols,
-               header_buttons=None,
-               footer_buttons=None):
-
-    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
-    if header_buttons:
-        menu.insert(0, header_buttons)
-    if footer_buttons:
-        menu.append(footer_buttons)
-    return menu
-
-
-def get_footer_buttons(*args):
-    footer_buttons = [
-        InlineKeyboardButton(button, callback_data=button) for button in args
-    ]
-    return footer_buttons
 
 
 async def start(update, context):
