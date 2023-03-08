@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'products',
     'tgbot',
     'clients',
+    'mailings',
     'cart'
 ]
 

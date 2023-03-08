@@ -3,6 +3,7 @@ import textwrap as tw
 import re
 
 from more_itertools import chunked
+from django.utils import timezone
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
@@ -27,10 +28,13 @@ from clients.models import Client
 from ._tools import (
     add_product_to_cart,
     build_menu,
+    change_status_mailing,
     create_client,
     create_order,
     get_cart_products_info,
     get_catigories,
+    get_clients,
+    get_mailing,
     get_product_detail,
     get_product_info_for_payment,
     get_product_name,
@@ -483,6 +487,22 @@ async def successful_payment_callback(update, context):
     return HANDLE_MENU
 
 
+async def handle_mailing(context):
+    mailings = await get_mailing()
+    for mailing in mailings:
+        start_time = mailing.start_date.strftime('%m-%d-%Y %H:%M')
+        now_time = timezone.now().strftime('%m-%d-%Y %H:%M')
+        if start_time == now_time:
+            clients = await get_clients()
+            for client in clients:
+                await context.bot.send_message(
+                    text=mailing.text,
+                    chat_id=client,
+                    parse_mode=ParseMode.HTML
+                )
+            await change_status_mailing(mailing)
+
+
 async def cancel(update, context):
     await update.message.reply_text(
         'Bye! I hope we can talk again some day.',
@@ -500,6 +520,7 @@ def bot_starting():
     tg_token = settings.TG_TOKEN
     tg_chat_id = settings.TG_CHAT_ID
     application = Application.builder().token(tg_token).build()
+    application.job_queue.run_repeating(handle_mailing, interval=60, first=10)
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
