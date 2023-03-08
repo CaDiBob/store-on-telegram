@@ -164,11 +164,6 @@ def create_order(context):
 
 
 @sync_to_async
-def get_client_orders(context):
-    pass
-
-
-@sync_to_async
 def upload_to_exel():
     orders = Order.objects.select_related('client')
     filepath = settings.ORDERS_FILE_PATH
@@ -197,10 +192,3 @@ def build_menu(buttons, n_cols,
     if footer_buttons:
         menu.append(footer_buttons)
     return menu
-
-
-def get_footer_buttons(*args):
-    footer_buttons = [
-        InlineKeyboardButton(button, callback_data=button) for button in args
-    ]
-    return footer_buttons
