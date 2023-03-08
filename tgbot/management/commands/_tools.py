@@ -136,13 +136,6 @@ def get_product_info_for_payment(context):
     }
 
 
-# @sync_to_async
-# def create_client_address(address, tg_user_id):
-#     client = Client.objects.get(tg_user_id=tg_user_id)
-#     client.address = address
-#     client.save()
-
-
 @sync_to_async
 def create_order(context):
     cart = Cart(context)

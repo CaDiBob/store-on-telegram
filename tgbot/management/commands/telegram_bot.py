@@ -60,6 +60,28 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+async def get_chat_member(update, context):
+    subscription_channel_id = settings.SUBSCRIPTION_CHANNEL_ID
+    subscription_channel_link = settings.SUBSCRIPTION_CHANNEL_LINK
+    user_status_chanel = await context.bot.get_chat_member(
+        chat_id=subscription_channel_id, user_id=update.effective_chat.id)
+
+    if 'left' in user_status_chanel['status']:
+        reply_markup = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton(
+                    'Наш канал', subscription_channel_link
+                )]
+            ]
+        )
+        await context.bot.send_message(
+            text='Сначала нужно подписаться на наш канал',
+            chat_id=update.effective_chat.id,
+            reply_markup=reply_markup
+        )
+        return True
+
+
 async def start(update, context):
     logger.info('start')
     text = 'Выберете действие:'
@@ -77,6 +99,8 @@ async def start(update, context):
             reply_markup=keyboard
         )
 
+    elif await get_chat_member(update, context):
+        return
     else:
         tg_user_id = update.effective_user.id
         context.user_data['tg_user_id'] = tg_user_id
@@ -400,13 +424,14 @@ async def save_customer(update, context):
     reply_markup = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton('Оплатить', callback_data='Оплатить')],
-            [InlineKeyboardButton('Главное меню', callback_data='Главное меню')]
-            ]
+            [InlineKeyboardButton(
+                'Главное меню', callback_data='Главное меню')]
+        ]
     )
     await update.callback_query.answer()
     await update.callback_query.edit_message_text(
         'Ваш адрес успешно сохранен, теперь можите оплатить ваш заказ',
-        reply_markup = reply_markup
+        reply_markup=reply_markup
     )
     return HANDLE_MENU
 
