@@ -1,10 +1,11 @@
 import textwrap as tw
 
+from django.utils import timezone
 from django.conf import settings
 import xlsxwriter
 from asgiref.sync import sync_to_async
-from telegram import InlineKeyboardButton
 
+from mailings.models import Mailing
 from clients.models import Client
 from products.models import (
     Category,
@@ -17,8 +18,8 @@ from cart.cart import Cart
 
 @sync_to_async
 def get_clients():
-    clients = [client.tg_user_id for client in Client.objects.all()]
-    return clients
+    clients = Client.objects.all()
+    return [client.tg_user_id for client in clients]
 
 
 @sync_to_async
@@ -180,6 +181,22 @@ def upload_to_exel():
     for row_num, row_data in enumerate(expenses):
         worksheet.write_row(row_num, 0, row_data)
     workbook.close()
+
+
+@sync_to_async
+def get_mailing():
+    current_mailings = Mailing.objects.filter(
+        start_date__lte=timezone.now(),
+        is_finish=False,
+    )
+    return [mailing for mailing in current_mailings]
+
+
+@sync_to_async
+def change_status_mailing(mailing):
+    
+    mailing.is_finish = True
+    mailing.save()
 
 
 def build_menu(buttons, n_cols,
