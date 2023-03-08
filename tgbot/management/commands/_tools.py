@@ -4,7 +4,12 @@ from asgiref.sync import sync_to_async
 from telegram import InlineKeyboardButton
 
 from clients.models import Client
-from products.models import Category, Product
+from products.models import (
+    Category,
+    Product,
+    Order,
+    OrderItem
+)
 from cart.cart import Cart
 
 
@@ -75,8 +80,8 @@ def add_product_to_cart(context):
 @sync_to_async
 def remove_product_from_cart(context):
     product_id = context.user_data['product_id']
-    cart = Cart(context)
     product = Product.objects.get(id=product_id)
+    cart = Cart(context)
     cart.remove(product)
 
 
@@ -131,11 +136,42 @@ def get_product_info_for_payment(context):
     }
 
 
+# @sync_to_async
+# def create_client_address(address, tg_user_id):
+#     client = Client.objects.get(tg_user_id=tg_user_id)
+#     client.address = address
+#     client.save()
+
+
 @sync_to_async
-def create_client_address(address, tg_user_id):
+def create_order(context):
+    cart = Cart(context)
+    address = context.user_data['address']
+    tg_user_id = context.user_data['tg_user_id']
     client = Client.objects.get(tg_user_id=tg_user_id)
-    client.address = address
-    client.save()
+    order = Order.objects.create(
+        client=client,
+        address=address,
+    )
+    order_elements = []
+    for order_product in cart:
+        product = order_product['product']
+        quantity = order_product['quantity']
+        order_element = OrderItem(
+            order=order,
+            product=product,
+            quantity=quantity,
+        )
+        order_elements.append(order_element)
+    OrderItem.objects.bulk_create(order_elements)
+
+    return True
+
+
+
+@sync_to_async
+def get_client_orders(context):
+    pass
 
 
 def build_menu(buttons, n_cols,

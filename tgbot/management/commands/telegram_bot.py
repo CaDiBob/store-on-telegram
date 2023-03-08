@@ -28,7 +28,7 @@ from ._tools import (
     add_product_to_cart,
     build_menu,
     create_client,
-    create_client_address,
+    create_order,
     get_cart_products_info,
     get_catigories,
     get_product_detail,
@@ -396,11 +396,19 @@ async def check_address_text(update, context):
 
 
 async def save_customer(update, context):
-    address = context.user_data['address']
     tg_user_id = update.effective_user.id
-    await create_client_address(address, tg_user_id)
-    await update.callback_query.answer('Ваш адрес успешно сохранен')
-    await handle_cart(update, context)
+    reply_markup = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton('Оплатить', callback_data='Оплатить')],
+            [InlineKeyboardButton('Главное меню', callback_data='Главное меню')]
+            ]
+    )
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text(
+        'Ваш адрес успешно сохранен, теперь можите оплатить ваш заказ',
+        reply_markup = reply_markup
+    )
+    return HANDLE_MENU
 
 
 async def handle_user_payment(update, context):
@@ -439,10 +447,12 @@ async def successful_payment_callback(update, context):
             ]
         ]
     )
-    await update.message.reply_text(
-        'Успешно! Ожидайте доставку.',
-        reply_markup=reply_markup
-    )
+    if await create_order(context):
+        context.user_data['cart'] = None
+        await update.message.reply_text(
+            'Успешно! Ожидайте доставку.',
+            reply_markup=reply_markup
+        )
     return HANDLE_MENU
 
 
