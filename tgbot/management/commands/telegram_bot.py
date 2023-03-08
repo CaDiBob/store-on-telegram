@@ -26,14 +26,17 @@ from telegram.ext import (
 from clients.models import Client
 from ._tools import (
     add_product_to_cart,
+    build_menu,
     create_client,
-    create_client_address,
+    create_order,
     get_cart_products_info,
     get_catigories,
     get_product_detail,
     get_product_info_for_payment,
     get_product_name,
     get_products,
+    remove_product_from_cart,
+    upload_to_exel
 )
 
 
@@ -58,23 +61,26 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def build_menu(buttons, n_cols,
-               header_buttons=None,
-               footer_buttons=None):
+async def get_chat_member(update, context):
+    subscription_channel_id = settings.SUBSCRIPTION_CHANNEL_ID
+    subscription_channel_link = settings.SUBSCRIPTION_CHANNEL_LINK
+    user_status_chanel = await context.bot.get_chat_member(
+        chat_id=subscription_channel_id, user_id=update.effective_chat.id)
 
-    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
-    if header_buttons:
-        menu.insert(0, header_buttons)
-    if footer_buttons:
-        menu.append(footer_buttons)
-    return menu
-
-
-def get_footer_buttons(*args):
-    footer_buttons = [
-        InlineKeyboardButton(button, callback_data=button) for button in args
-    ]
-    return footer_buttons
+    if 'left' in user_status_chanel['status']:
+        reply_markup = InlineKeyboardMarkup(
+            [
+                [InlineKeyboardButton(
+                    'Наш канал', subscription_channel_link
+                )]
+            ]
+        )
+        await context.bot.send_message(
+            text='Сначала нужно подписаться на наш канал',
+            chat_id=update.effective_chat.id,
+            reply_markup=reply_markup
+        )
+        return True
 
 
 async def start(update, context):
@@ -83,7 +89,7 @@ async def start(update, context):
     keyboard = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton('📋 Каталог', callback_data='catalog')],
-            [InlineKeyboardButton('🛒Корзина', callback_data='cart')],
+            [InlineKeyboardButton('🛒Корзина', callback_data='Корзина')],
             [InlineKeyboardButton('🗣 FAQ', callback_data='faq')]
         ]
     )
@@ -94,10 +100,12 @@ async def start(update, context):
             reply_markup=keyboard
         )
 
+    elif await get_chat_member(update, context):
+        return
     else:
         tg_user_id = update.effective_user.id
         context.user_data['tg_user_id'] = tg_user_id
-        first_name = update.message.chat.first_name
+        first_name = update.effective_user.first_name
         await create_client(tg_user_id, first_name)
 
         await update.message.reply_text(
@@ -171,6 +179,11 @@ async def get_menu(current_page, category_id):
     if current_page < len(categories_group) - 1:
         footer_buttons.append(InlineKeyboardButton(
             '>>>', callback_data='next'))
+    if category_id:
+        footer_buttons.append(
+            InlineKeyboardButton(
+                'Назад',
+                callback_data='Назад'))
     footer_buttons.append(
         InlineKeyboardButton(
             'Главное меню',
@@ -229,12 +242,21 @@ async def handle_products(update, context):
             [[InlineKeyboardButton('Добавить в корзину',
                                    callback_data=product.id)]]
         )
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=get_product_detail(product),
-            reply_markup=put_cart_button,
-            parse_mode=ParseMode.HTML
-        )
+        if not product.image:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=get_product_detail(product),
+                reply_markup=put_cart_button,
+                parse_mode=ParseMode.HTML
+            )
+        else:
+            await context.bot.send_photo(
+                chat_id=update.effective_chat.id,
+                photo=product.image,
+                caption=get_product_detail(product),
+                reply_markup=put_cart_button,
+                parse_mode=ParseMode.HTML
+            )
     keyboard = [
         [
             InlineKeyboardButton('Назад', callback_data='Назад'),
@@ -260,8 +282,9 @@ async def handle_product_detail(update, context):
     product_id = update.callback_query.data
     context.user_data['product_id'] = product_id
     product_detais = await get_product_name(product_id)
+    context.user_data['product_detais'] = product_detais
     await context.bot.send_message(
-        text=product_detais,
+        text=f'{product_detais}\nВведите количество:',
         chat_id=update.effective_chat.id,
         reply_markup=reply_markup,
         parse_mode=ParseMode.HTML
@@ -280,11 +303,15 @@ async def check_quantity(update, context):
             ]
         ]
     )
+    product_detais = context.user_data['product_detais']
     context.user_data['quantity'] = update.message.text
     await context.bot.send_message(
-        text=f'Ты ввел {update.message.text}',
+        text=tw.dedent(f'''
+        Вы выбрали {product_detais}  {update.message.text} шт.
+        '''),
         chat_id=update.effective_chat.id,
-        reply_markup=reply_markup
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.HTML
     )
     return HANDLE_CART
 
@@ -327,34 +354,45 @@ async def show_cart_info(update, context):
 
 
 async def handle_cart(update, context):
-    reply_markup = InlineKeyboardMarkup(
-        [
-            [
-                InlineKeyboardButton('Назад', callback_data='Назад'),
-                InlineKeyboardButton('Оплатить', callback_data='Оплатить'),
-            ],
-            [
-                InlineKeyboardButton(
-                    'Добавить адрес для доставки', callback_data='delivery_address')
-            ]
-        ]
-    )
+    logger.info('handle_cart')
+    back = [InlineKeyboardButton('Назад', callback_data='Назад')]
+    delivery_address = [InlineKeyboardButton(
+        'Добавить адрес для доставки', callback_data='delivery_address')]
     if not 'cart' in context.user_data:
         await update.callback_query.answer('Пустая корзина')
         return
     else:
-        products = await get_cart_products_info(context)
+        products_info, products = await get_cart_products_info(context)
+        keyboard = []
+        for position, product in enumerate(products, start=1):
+            keyboard.append(InlineKeyboardButton(
+                f'Удалить позицию №{position}', callback_data=product.id))
+        keyboard_groups = build_menu(keyboard, n_cols=2)
+        keyboard_groups.append(back)
+        keyboard_groups.append(delivery_address)
+        reply_markup = InlineKeyboardMarkup(
+            keyboard_groups
+        )
         await update.callback_query.edit_message_text(
-            text=products,
+            text=products_info,
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML
         )
         return HANDLE_MENU
 
 
+async def remove_product(update, context):
+    product_id = update.callback_query.data
+    context.user_data['product_id'] = product_id
+    await remove_product_from_cart(context)
+    await update.callback_query.answer('Товар удален из корзины')
+    await handle_cart(update, context)
+    return HANDLE_MENU
+
+
 async def add_delivery_address(update, context):
     keyboard = [
-        [InlineKeyboardButton('Корзина', callback_data='cart')],
+        [InlineKeyboardButton('Корзина', callback_data='Корзина')],
         [InlineKeyboardButton('Назад', callback_data='Назад')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -383,11 +421,20 @@ async def check_address_text(update, context):
 
 
 async def save_customer(update, context):
-    address = context.user_data['address']
     tg_user_id = update.effective_user.id
-    await create_client_address(address, tg_user_id)
-    await update.callback_query.answer('Ваш адрес успешно сохранен')
-    await handle_cart(update, context)
+    reply_markup = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton('Оплатить', callback_data='Оплатить')],
+            [InlineKeyboardButton(
+                'Главное меню', callback_data='Главное меню')]
+        ]
+    )
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text(
+        'Ваш адрес успешно сохранен, теперь можите оплатить ваш заказ',
+        reply_markup=reply_markup
+    )
+    return HANDLE_MENU
 
 
 async def handle_user_payment(update, context):
@@ -426,19 +473,22 @@ async def successful_payment_callback(update, context):
             ]
         ]
     )
-    await update.message.reply_text(
-        'Успешно! Ожидайте доставку.',
-        reply_markup=reply_markup
-    )
+    if await create_order(context):
+        await upload_to_exel()
+        context.user_data['cart'] = None
+        await update.message.reply_text(
+            'Успешно! Ожидайте доставку.',
+            reply_markup=reply_markup
+        )
     return HANDLE_MENU
 
 
 async def cancel(update, context):
-    user = update.message.from_user
     await update.message.reply_text(
         'Bye! I hope we can talk again some day.',
         reply_markup=ReplyKeyboardRemove()
     )
+    context.user_data[START_OVER] = False
     return ConversationHandler.END
 
 
@@ -455,6 +505,7 @@ def bot_starting():
         states={
             HANDLE_MENU: [
                 CallbackQueryHandler(handle_user_payment, pattern=r'Оплатить'),
+                CallbackQueryHandler(remove_product, pattern=r'[0-9]'),
                 CallbackQueryHandler(start, pattern='Назад'),
                 CallbackQueryHandler(add_delivery_address,
                                      pattern=r'delivery_address'),
@@ -462,7 +513,7 @@ def bot_starting():
             HANDLE_CATEGORIES: [
                 CallbackQueryHandler(handle_sub_categories, pattern=r'[0-9]'),
                 CallbackQueryHandler(start, pattern=r'Главное меню'),
-                CallbackQueryHandler(handle_cart, pattern=r'cart'),
+                CallbackQueryHandler(handle_cart, pattern=r'Корзина'),
                 CallbackQueryHandler(handle_categories),
             ],
             HANDLE_SUB_CATEGORIES: [
@@ -472,12 +523,14 @@ def bot_starting():
             ],
             HANDLE_PRODUCTS: [
                 CallbackQueryHandler(handle_products, pattern=r'[0-9]'),
+                CallbackQueryHandler(handle_categories, pattern=r'Назад'),
                 CallbackQueryHandler(start, pattern=r'Главное меню'),
                 CallbackQueryHandler(handle_sub_categories)
             ],
             HANDLE_DESCRIPTION: [
                 CallbackQueryHandler(handle_product_detail, pattern=r'[0-9]'),
                 CallbackQueryHandler(handle_sub_categories, pattern=r'Назад'),
+                CallbackQueryHandler(start, pattern=r'Главное меню'),
             ],
             HANDLE_CART: [
                 MessageHandler(filters.TEXT, check_quantity),
@@ -499,7 +552,10 @@ def bot_starting():
                                successful_payment_callback),
             ]
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[
+            CommandHandler('cancel', cancel),
+            CommandHandler("start", start),
+        ],
         per_chat=False,
         allow_reentry=True,
     )

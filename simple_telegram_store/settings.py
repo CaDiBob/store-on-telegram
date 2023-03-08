@@ -20,6 +20,9 @@ env.read_env()
 
 TG_TOKEN = env('TG_TOKEN')
 TG_CHAT_ID = env('TG_CHAT_ID')
+SUBSCRIPTION_CHANNEL_ID = env('SUBSCRIPTION_CHANNEL_ID')
+SUBSCRIPTION_CHANNEL_LINK = env('SUBSCRIPTION_CHANNEL_LINK')
+
 PAYMENT_TOKEN = env('STRIPE_SECRET_TOKEN')
 
 CART_SESSION_ID = 'cart'
@@ -28,6 +31,7 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+ORDERS_FILE_PATH = Path(BASE_DIR) / 'orders.xlsx'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
@@ -50,9 +54,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'clients',
     'products',
     'tgbot',
+    'clients',
     'cart'
 ]
 
@@ -138,3 +142,6 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+MEDIA_ROOT = Path(BASE_DIR) / 'media'
+MEDIA_URL = '/media/'

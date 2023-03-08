@@ -74,6 +74,7 @@ class Order(models.Model):
         'Когда создан',
         default=timezone.now,
     )
+    address = models.TextField('Адрес доставки', blank=True)
 
     class Meta:
         verbose_name = 'Заказ'
