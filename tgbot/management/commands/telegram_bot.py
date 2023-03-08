@@ -36,6 +36,7 @@ from ._tools import (
     get_product_name,
     get_products,
     remove_product_from_cart,
+    upload_to_exel
 )
 
 
@@ -473,6 +474,7 @@ async def successful_payment_callback(update, context):
         ]
     )
     if await create_order(context):
+        await upload_to_exel()
         context.user_data['cart'] = None
         await update.message.reply_text(
             'Успешно! Ожидайте доставку.',

@@ -1,5 +1,7 @@
 import textwrap as tw
 
+from django.conf import settings
+import xlsxwriter
 from asgiref.sync import sync_to_async
 from telegram import InlineKeyboardButton
 
@@ -161,10 +163,28 @@ def create_order(context):
     return True
 
 
-
 @sync_to_async
 def get_client_orders(context):
     pass
+
+
+@sync_to_async
+def upload_to_exel():
+    orders = Order.objects.select_related('client')
+    filepath = settings.ORDERS_FILE_PATH
+    workbook = xlsxwriter.Workbook(filepath)
+    worksheet = workbook.add_worksheet()
+
+    bold = workbook.add_format({'bold': True})
+
+    expenses = [
+        [order.client.tg_user_id,
+         order.created_at.strftime('%m/%d/%Y'),
+         order.address]for order in orders]
+
+    for row_num, row_data in enumerate(expenses):
+        worksheet.write_row(row_num, 0, row_data)
+    workbook.close()
 
 
 def build_menu(buttons, n_cols,
