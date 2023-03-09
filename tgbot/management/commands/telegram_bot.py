@@ -88,7 +88,6 @@ async def get_chat_member(update, context):
 
 
 async def start(update, context):
-    logger.info('start')
     text = 'Выберете действие:'
     keyboard = InlineKeyboardMarkup(
         [
@@ -201,7 +200,6 @@ async def get_menu(current_page, category_id):
 
 
 async def handle_categories(update, context):
-    logger.info('handle_categories new')
     context.user_data['super_category_id'] = None
     super_category_id = context.user_data['super_category_id']
     if update.callback_query.data in ('catalog', 'Назад'):
@@ -216,7 +214,6 @@ async def handle_categories(update, context):
 
 
 async def handle_sub_categories(update, context):
-    logger.info('handle_sud_categories new')
     if update.callback_query.data == 'next':
         super_category_id = context.user_data['super_category_id']
         await show_next_page(update, context, super_category_id)
@@ -237,7 +234,6 @@ async def handle_sub_categories(update, context):
 
 
 async def handle_products(update, context):
-    logger.info('handle_products new')
     product_category = update.callback_query.data
     products_category = await get_products(product_category)
     products_num = len(products_category)
@@ -277,7 +273,6 @@ async def handle_products(update, context):
 
 
 async def handle_product_detail(update, context):
-    logger.info('handle_product_detail')
     reply_markup = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton('Назад', callback_data='Назад')]
@@ -297,7 +292,6 @@ async def handle_product_detail(update, context):
 
 
 async def check_quantity(update, context):
-
     quantity = update.message.text
     if re.match(r'[0-9]', quantity):
         reply_markup = InlineKeyboardMarkup(
@@ -332,7 +326,6 @@ async def check_quantity(update, context):
 
 
 async def add_cart(update, context):
-    logger.info('add_cart')
     if update.callback_query.data == 'Категории':
         await show_main_page(update, context, super_category_id=None)
         return HANDLE_CATEGORIES
@@ -369,7 +362,6 @@ async def show_cart_info(update, context):
 
 
 async def handle_cart(update, context):
-    logger.info('handle_cart')
     back = [InlineKeyboardButton('Назад', callback_data='Назад')]
     delivery_address = [InlineKeyboardButton(
         'Добавить адрес для доставки', callback_data='delivery_address')]
@@ -436,7 +428,6 @@ async def check_address_text(update, context):
 
 
 async def save_customer(update, context):
-    tg_user_id = update.effective_user.id
     reply_markup = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton('Оплатить', callback_data='Оплатить')],
@@ -453,7 +444,6 @@ async def save_customer(update, context):
 
 
 async def handle_user_payment(update, context):
-    logger.info('handle_user_payment')
     order_info = await get_product_info_for_payment(context)
     chat_id = update.effective_user.id
     title = 'Оплата товаров "Магазин в Телеграме"'
@@ -470,7 +460,6 @@ async def handle_user_payment(update, context):
 
 
 async def precheckout_callback(update, context):
-    logger.info('precheckout_callback')
     query = update.pre_checkout_query
     if query.invoice_payload != 'telegram-store':
         await query.answer(ok=False, error_message="Something went wrong...")
@@ -480,7 +469,6 @@ async def precheckout_callback(update, context):
 
 
 async def successful_payment_callback(update, context):
-    logger.info('successful_payment_callback')
     reply_markup = InlineKeyboardMarkup(
         [
             [
