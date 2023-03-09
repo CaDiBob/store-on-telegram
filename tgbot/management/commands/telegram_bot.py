@@ -24,7 +24,6 @@ from telegram.ext import (
     PreCheckoutQueryHandler
 )
 
-from clients.models import Client
 from ._tools import (
     add_product_to_cart,
     build_menu,
@@ -39,6 +38,7 @@ from ._tools import (
     get_product_info_for_payment,
     get_product_name,
     get_products,
+    get_text_faq,
     remove_product_from_cart,
     upload_to_exel
 )
@@ -489,18 +489,19 @@ async def successful_payment_callback(update, context):
 
 async def handle_mailing(context):
     mailings = await get_mailing()
-    for mailing in mailings:
-        start_time = mailing.start_date.strftime('%m-%d-%Y %H:%M')
-        now_time = timezone.now().strftime('%m-%d-%Y %H:%M')
-        if start_time == now_time:
-            clients = await get_clients()
-            for client in clients:
-                await context.bot.send_message(
-                    text=mailing.text,
-                    chat_id=client,
-                    parse_mode=ParseMode.HTML
-                )
-            await change_status_mailing(mailing)
+    if mailings:
+        for mailing in mailings:
+            start_time = mailing.start_date.strftime('%m-%d-%Y %H:%M')
+            now_time = timezone.now().strftime('%m-%d-%Y %H:%M')
+            if start_time == now_time:
+                clients = await get_clients()
+                for client in clients:
+                    await context.bot.send_message(
+                        text=mailing.text,
+                        chat_id=client,
+                        parse_mode=ParseMode.HTML
+                    )
+                await change_status_mailing(mailing)
 
 
 async def cancel(update, context):
@@ -510,6 +511,24 @@ async def cancel(update, context):
     )
     context.user_data[START_OVER] = False
     return ConversationHandler.END
+
+
+async def handle_faq(update, context):
+    text = '<b>Часто задаваемые вопросы</b>'
+    reply_markup = InlineKeyboardMarkup(
+        [[InlineKeyboardButton('Назад', callback_data='Назад')]]
+    )
+    text_faq = await get_text_faq()
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text(
+        tw.dedent(f'''
+        {text}
+        {text_faq}
+        '''),
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.HTML
+    )
+    return HANDLE_MENU
 
 
 async def handle_error(update, context):
@@ -535,6 +554,7 @@ def bot_starting():
                 CallbackQueryHandler(handle_sub_categories, pattern=r'[0-9]'),
                 CallbackQueryHandler(start, pattern=r'Главное меню'),
                 CallbackQueryHandler(handle_cart, pattern=r'Корзина'),
+                CallbackQueryHandler(handle_faq, pattern=r'faq'),
                 CallbackQueryHandler(handle_categories),
             ],
             HANDLE_SUB_CATEGORIES: [

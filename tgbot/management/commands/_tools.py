@@ -5,6 +5,7 @@ from django.conf import settings
 import xlsxwriter
 from asgiref.sync import sync_to_async
 
+from faq.models import FAQ
 from mailings.models import Mailing
 from clients.models import Client
 from products.models import (
@@ -194,9 +195,23 @@ def get_mailing():
 
 @sync_to_async
 def change_status_mailing(mailing):
-    
     mailing.is_finish = True
     mailing.save()
+
+
+@sync_to_async
+def get_text_faq():
+    all_faq = FAQ.objects.all()
+    text_faq = ''
+    for num, faq in enumerate(all_faq, start=1):
+        question = faq.question
+        answer = faq.answer
+        text_faq += tw.dedent(f'''
+        <b>№{num} {question}</b>
+        <i>{answer}</i>
+        '''
+        )
+    return text_faq
 
 
 def build_menu(buttons, n_cols,
