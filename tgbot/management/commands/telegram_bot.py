@@ -298,26 +298,37 @@ async def handle_product_detail(update, context):
 
 async def check_quantity(update, context):
 
-    reply_markup = InlineKeyboardMarkup(
-        [
+    quantity = update.message.text
+    if re.match(r'[0-9]', quantity):
+        reply_markup = InlineKeyboardMarkup(
             [
-                InlineKeyboardButton('Назад', callback_data='Назад'),
-                InlineKeyboardButton(
-                    'Подтвердить', callback_data='Подтвердить')
+                [
+                    InlineKeyboardButton('Назад', callback_data='Назад'),
+                    InlineKeyboardButton(
+                        'Подтвердить', callback_data='Подтвердить')
+                ]
             ]
-        ]
-    )
-    product_detais = context.user_data['product_detais']
-    context.user_data['quantity'] = update.message.text
-    await context.bot.send_message(
-        text=tw.dedent(f'''
-        Вы выбрали {product_detais}  {update.message.text} шт.
-        '''),
-        chat_id=update.effective_chat.id,
-        reply_markup=reply_markup,
-        parse_mode=ParseMode.HTML
-    )
-    return HANDLE_CART
+        )
+        product_detais = context.user_data['product_detais']
+        context.user_data['quantity'] = quantity
+        await context.bot.send_message(
+            text=tw.dedent(f'''
+            Вы выбрали {product_detais}  {quantity} шт.
+            '''),
+            chat_id=update.effective_chat.id,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML
+        )
+    else:
+        await context.bot.send_message(
+            text=tw.dedent('''
+            <b>Количество должно быть числом</b>
+            \n<b>Введите количество</b>
+            '''),
+            chat_id=update.effective_chat.id,
+            parse_mode=ParseMode.HTML
+        )
+        return HANDLE_CART
 
 
 async def add_cart(update, context):
