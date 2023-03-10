@@ -65,7 +65,7 @@ def create_categories():
                 name=sub_category,
                 sub_category=sup_cat
             )
-            print(f'{sub_category} с надкотегорией {category} добавлена')
+            print(f'{sub_category} с надкатегорией {category} добавлена')
 
 
 class Command(BaseCommand):
