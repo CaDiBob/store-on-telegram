@@ -172,7 +172,7 @@ def upload_to_exel():
     workbook = xlsxwriter.Workbook(filepath)
     worksheet = workbook.add_worksheet()
 
-    bold = workbook.add_format({'bold': True})
+    workbook.add_format({'bold': True})
 
     expenses = [
         [order.client.tg_user_id,
@@ -209,8 +209,7 @@ def get_text_faq():
         text_faq += tw.dedent(f'''
         <b>№{num} {question}</b>
         <i>{answer}</i>
-        '''
-        )
+        ''')
     return text_faq
 
 

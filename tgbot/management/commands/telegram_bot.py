@@ -348,7 +348,7 @@ async def handle_cart(update, context):
     back = [InlineKeyboardButton('Назад', callback_data='Назад')]
     delivery_address = [InlineKeyboardButton(
         'Добавить адрес для доставки', callback_data='delivery_address')]
-    if not 'cart' in context.user_data:
+    if 'cart' not in context.user_data:
         await update.callback_query.answer('Пустая корзина')
         return
     else:
@@ -519,7 +519,6 @@ async def handle_error(update, context):
 
 def bot_starting():
     tg_token = settings.TG_TOKEN
-    tg_chat_id = settings.TG_CHAT_ID
     application = Application.builder().token(tg_token).build()
     application.job_queue.run_repeating(handle_mailing, interval=60, first=10)
     conv_handler = ConversationHandler(

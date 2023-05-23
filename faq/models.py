@@ -1,5 +1,6 @@
 from django.db import models
 
+
 class FAQ(models.Model):
     question = models.TextField('Вопрос')
     answer = models.TextField('Ответ')
