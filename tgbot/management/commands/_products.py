@@ -66,7 +66,10 @@ products_with_price = [
         'category': 'Планшеты'
     },
     {
-        'name': '15.6" Ноутбук Echips Envy 15.6" 1920x1080 IPS Intel J4125 512 GB, Intel Celeron J4125 (2.0 ГГц), RAM 8 ГБ, SSD 512 ГБ, Intel HD Graphics 600, Windows Pro',
+        'name': '''
+        15.6" Ноутбук Echips Envy 15.6" 1920x1080 IPS Intel J4125 512 GB,
+        Intel Celeron J4125 (2.0 ГГц), RAM 8 ГБ, SSD 512 ГБ, Intel HD Graphics 600, Windows Pro
+        ''',
         'description': '''
                         Процессор: Intel Celeron J4125 (2.0 ГГц)
                         Оперативная память: 8 ГБ
@@ -78,7 +81,10 @@ products_with_price = [
         'category': 'Ноутбуки'
     },
     {
-        'name': '13.3" Ноутбук Apple MacBook Air, Apple M1 (8C CPU, 7C GPU), RAM 8 ГБ, SSD 256 ГБ, macOS, (MGN93RU/A), Silver',
+        'name': '''
+        13.3" Ноутбук Apple MacBook Air, Apple M1
+        (8C CPU, 7C GPU), RAM 8 ГБ, SSD 256 ГБ, macOS, (MGN93RU/A), Silver
+        ''',
         'description': '''
                         Процессор: Apple M1 (8C CPU, 7C GPU)
                         Оперативная память: 8 ГБ
