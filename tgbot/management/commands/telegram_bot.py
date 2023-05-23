@@ -24,24 +24,7 @@ from telegram.ext import (
     PreCheckoutQueryHandler
 )
 
-from ._tools import (
-    add_product_to_cart,
-    build_menu,
-    change_status_mailing,
-    create_client,
-    create_order,
-    get_cart_products_info,
-    get_catigories,
-    get_clients,
-    get_mailing,
-    get_product_detail,
-    get_product_info_for_payment,
-    get_product_name,
-    get_products,
-    get_text_faq,
-    remove_product_from_cart,
-    upload_to_exel
-)
+from ._tools import add_product_to_cart, build_menu, change_status_mailing, create_client, create_order, get_cart_products_info, get_catigories, get_clients, get_mailing, get_product_detail, get_product_info_for_payment, get_product_name, get_products, get_text_faq, remove_product_from_cart, upload_to_exel
 
 
 (
